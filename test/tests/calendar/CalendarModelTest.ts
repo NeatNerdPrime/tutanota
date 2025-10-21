@@ -14,7 +14,14 @@ import { CalendarAttendeeStatus, CalendarMethod, OperationType, RepeatPeriod } f
 import { DateTime } from "luxon"
 import { EntityEventsListener, EventController } from "../../../src/common/api/main/EventController.js"
 import { Notifications } from "../../../src/common/gui/Notifications.js"
-import { AlarmInfo, AlarmInfoTypeRef, UserAlarmInfoListTypeTypeRef, UserAlarmInfoTypeRef, UserTypeRef } from "../../../src/common/api/entities/sys/TypeRefs.js"
+import {
+	AlarmInfo,
+	AlarmInfoTypeRef,
+	GroupMembershipTypeRef,
+	UserAlarmInfoListTypeTypeRef,
+	UserAlarmInfoTypeRef,
+	UserTypeRef,
+} from "../../../src/common/api/entities/sys/TypeRefs.js"
 import { EntityRestClientMock } from "../api/worker/rest/EntityRestClientMock.js"
 import type { UserController } from "../../../src/common/api/main/UserController.js"
 import { NotFoundError } from "../../../src/common/api/common/error/RestError.js"
@@ -41,6 +48,7 @@ import { SyncTracker } from "../../../src/common/api/main/SyncTracker.js"
 import { ClientModelInfo } from "../../../src/common/api/common/EntityFunctions"
 import { EntityRestClient } from "../../../src/common/api/worker/rest/EntityRestClient"
 import { eventHasSameFields } from "../../../src/common/calendar/gui/ImportExportUtils"
+import { LanguageViewModel } from "../../../src/common/misc/LanguageViewModel.js"
 
 o.spec("CalendarModel", function () {
 	const noPatchesAndInstance: Pick<EntityUpdateData, "instance" | "patches"> = {
@@ -857,6 +865,8 @@ function makeLoginController(): LoginController {
 	})
 	when(loginController.getUserController()).thenReturn(userController)
 	when(userController.getCalendarMemberships()).thenReturn([])
+	const contactGroupMembership = createTestEntity(GroupMembershipTypeRef, { group: "contactGroup" })
+	when(userController.getContactGroupMemberships()).thenReturn([contactGroupMembership])
 	return loginController
 }
 
@@ -919,6 +929,7 @@ function init({
 	syncTracker = makeSyncTracker(),
 }): CalendarModel {
 	const lazyScheduler = async () => alarmScheduler
+	const langMock: LanguageViewModel = object()
 
 	return new CalendarModel(
 		notifications,
@@ -942,5 +953,6 @@ function init({
 		}),
 		syncTracker,
 		() => {},
+		langMock,
 	)
 }

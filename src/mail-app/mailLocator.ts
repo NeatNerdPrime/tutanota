@@ -71,7 +71,7 @@ import { SearchViewModel } from "./search/view/SearchViewModel.js"
 import { SearchRouter } from "../common/search/view/SearchRouter.js"
 import { MailOpenedListener } from "./mail/view/MailViewModel.js"
 import { getEnabledMailAddressesWithUser } from "../common/mailFunctionality/SharedMailUtils.js"
-import { CLIENT_ONLY_CALENDARS, Const, DEFAULT_CLIENT_ONLY_CALENDAR_COLORS, FeatureType, GroupType } from "../common/api/common/TutanotaConstants.js"
+import { Const, FeatureType, GroupType } from "../common/api/common/TutanotaConstants.js"
 import { ShareableGroupType } from "../common/sharing/GroupUtils.js"
 import { ReceivedGroupInvitationsModel } from "../common/sharing/model/ReceivedGroupInvitationsModel.js"
 import { CalendarViewModel } from "../calendar-app/calendar/view/CalendarViewModel.js"
@@ -129,7 +129,6 @@ import type { ContactImporter } from "./contacts/ContactImporter.js"
 import { ExternalCalendarFacade } from "../common/native/common/generatedipc/ExternalCalendarFacade.js"
 import { AppType } from "../common/misc/ClientConstants.js"
 import { ParsedEvent } from "../common/calendar/gui/CalendarImporter.js"
-import { lang } from "../common/misc/LanguageViewModel.js"
 import type { CalendarContactPreviewViewModel } from "../calendar-app/calendar/gui/eventpopup/CalendarContactPreviewViewModel.js"
 import { KeyLoaderFacade } from "../common/api/worker/facades/KeyLoaderFacade.js"
 import { KeyVerificationFacade } from "../common/api/worker/facades/lazy/KeyVerificationFacade"
@@ -154,6 +153,7 @@ import { WhitelabelThemeGenerator } from "../common/gui/WhitelabelThemeGenerator
 import { UndoModel } from "./UndoModel"
 import { GroupSettingsModel } from "../common/sharing/model/GroupSettingsModel"
 import { AutosaveFacade } from "../common/api/worker/facades/lazy/AutosaveFacade"
+import { lang } from "../common/misc/LanguageViewModel.js"
 
 assertMainOrNode()
 
@@ -305,6 +305,7 @@ class MailLocator implements CommonLocator {
 		const searchRouter = await this.scopedSearchRouter()
 		const calendarEventsRepository = await this.calendarEventsRepository()
 		const offlineStorageSettings = await this.offlineStorageSettingsModel()
+		const calendarModel = await this.calendarModel()
 		return () => {
 			return new SearchViewModel(
 				searchRouter,
@@ -320,9 +321,9 @@ class MailLocator implements CommonLocator {
 				this.progressTracker,
 				conversationViewModelFactory,
 				calendarEventsRepository,
+				calendarModel,
 				redraw,
 				deviceConfig.getMailAutoSelectBehavior(),
-				deviceConfig.getClientOnlyCalendars(),
 				offlineStorageSettings,
 			)
 		}
@@ -1051,6 +1052,7 @@ class MailLocator implements CommonLocator {
 			!isBrowser() ? this.pushService : null,
 			this.syncTracker,
 			noOp,
+			lang,
 		)
 	})
 
@@ -1101,7 +1103,7 @@ class MailLocator implements CommonLocator {
 
 			calendarSelectionDialog(Array.from(calendarInfos.values()), this.logins.getUserController(), groupColors, (dialog, selectedCalendar) => {
 				dialog.close()
-				handleCalendarImport(selectedCalendar.groupRoot, parsedEvents)
+				handleCalendarImport(selectedCalendar.groupRoot, selectedCalendar, parsedEvents)
 			})
 		}
 	}
@@ -1180,7 +1182,6 @@ class MailLocator implements CommonLocator {
 			this.themeController,
 			this.syncTracker,
 			() => this.showSetupWizard(),
-			() => this.setUpClientOnlyCalendars(),
 			() => this.updateClients(),
 		)
 	})
@@ -1198,20 +1199,6 @@ class MailLocator implements CommonLocator {
 				deviceConfig,
 				true,
 			)
-		}
-	}
-
-	setUpClientOnlyCalendars() {
-		let configs = deviceConfig.getClientOnlyCalendars()
-
-		for (const [id, name] of CLIENT_ONLY_CALENDARS.entries()) {
-			const calendarId = `${this.logins.getUserController().userId}#${id}`
-			const config = configs.get(calendarId)
-			if (!config)
-				deviceConfig.updateClientOnlyCalendars(calendarId, {
-					name: lang.get(name),
-					color: DEFAULT_CLIENT_ONLY_CALENDAR_COLORS.get(id)!,
-				})
 		}
 	}
 

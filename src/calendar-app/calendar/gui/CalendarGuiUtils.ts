@@ -53,8 +53,6 @@ import {
 import {
 	AccountType,
 	CalendarAttendeeStatus,
-	CLIENT_ONLY_CALENDARS,
-	DEFAULT_CLIENT_ONLY_CALENDAR_COLORS,
 	defaultCalendarColor,
 	EndType,
 	EventTextTimeOption,
@@ -80,7 +78,6 @@ import { EventsOnDays } from "../view/CalendarViewModel.js"
 import { CalendarEventPreviewViewModel } from "./eventpopup/CalendarEventPreviewViewModel.js"
 import { createAsyncDropdown } from "../../../common/gui/base/Dropdown.js"
 import { UserController } from "../../../common/api/main/UserController.js"
-import { ClientOnlyCalendarsInfo } from "../../../common/misc/DeviceConfig.js"
 import { SelectOption } from "../../../common/gui/base/Select.js"
 import { RadioGroupOption } from "../../../common/gui/base/RadioGroup.js"
 import { ColorPickerModel } from "../../../common/gui/base/colorPicker/ColorPickerModel.js"
@@ -922,39 +919,6 @@ export const iconForAttendeeStatus: Record<CalendarAttendeeStatus, AllIcons> = O
 	[CalendarAttendeeStatus.ADDED]: Icons.CircleHelp,
 })
 
-export const getClientOnlyColors = (userId: Id, clientOnlyCalendarsInfo: Map<Id, ClientOnlyCalendarsInfo>) => {
-	const colors: Map<Id, string> = new Map()
-	for (const [id, _] of CLIENT_ONLY_CALENDARS) {
-		const calendarId = `${userId}#${id}`
-		colors.set(calendarId, clientOnlyCalendarsInfo.get(calendarId)?.color ?? DEFAULT_CLIENT_ONLY_CALENDAR_COLORS.get(id)!)
-	}
-	return colors
-}
-
-export const getClientOnlyCalendars = (
-	userId: Id,
-	clientOnlyCalendarInfo: Map<Id, ClientOnlyCalendarsInfo>,
-): (ClientOnlyCalendarsInfo & {
-	id: string
-	name: string
-})[] => {
-	const userCalendars: (ClientOnlyCalendarsInfo & { id: string; name: string })[] = []
-
-	for (const [id, key] of CLIENT_ONLY_CALENDARS) {
-		const calendarId = `${userId}#${id}`
-		const calendar = clientOnlyCalendarInfo.get(calendarId)
-		if (calendar) {
-			userCalendars.push({
-				...calendar,
-				id: calendarId,
-				name: calendar.name ? calendar.name : lang.get(key),
-			})
-		}
-	}
-
-	return userCalendars
-}
-
 /**
  *  find out how we ended up with this event, which determines the capabilities we have with it.
  *  for shared events in calendar where we have read-write access, we can still only view events that have
@@ -1004,7 +968,7 @@ export function getEventType(
 		return EventType.OWN
 	}
 
-	if (calendarInfoForEvent.shared) {
+	if (calendarInfoForEvent.hasMultipleMembers) {
 		const canWrite = hasCapabilityOnGroup(user, calendarInfoForEvent.group, ShareCapability.Write)
 		if (canWrite) {
 			const organizerAddress = cleanMailAddress(existingOrganizer?.address ?? "")
@@ -1126,7 +1090,11 @@ export function renderCalendarColor(selectedCalendar: CalendarInfo | null, group
  *   // Handle macOS modifier logic
  * }
  */
-export function extractCalendarEventModifierKey<T extends MouseEvent | KeyboardEvent>(event: T & { redraw?: boolean }): Key | undefined {
+export function extractCalendarEventModifierKey<T extends MouseEvent | KeyboardEvent>(
+	event: T & {
+		redraw?: boolean
+	},
+): Key | undefined {
 	let key
 	if (event.metaKey && isAppleDevice()) {
 		key = Keys.META
